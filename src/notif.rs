@@ -63,7 +63,7 @@ impl std::fmt::Debug for Notification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Notification [")?;
         for sample in self.samples() {
-            writeln!(f, "    {:?}", sample)?;
+            writeln!(f, "    {sample:?}")?;
         }
         write!(f, "]")
     }
