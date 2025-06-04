@@ -16,6 +16,7 @@ use crate::{AmsAddr, AmsNetId, Error, Result};
 pub const BECKHOFF_UDP_MAGIC: u32 = 0x_71_14_66_03;
 
 /// Represents a message in the UDP protocol.
+#[derive(Debug, Clone)]
 pub struct Message {
     items: Vec<(u16, usize, usize)>,
     data: Vec<u8>,
@@ -233,6 +234,7 @@ pub fn get_netid(target: (&str, u16)) -> Result<AmsNetId> {
 }
 
 /// Information about the system running TwinCAT.
+#[derive(Debug, Clone)]
 pub struct SysInfo {
     /// AMS NetID of the system.
     pub netid: AmsNetId,

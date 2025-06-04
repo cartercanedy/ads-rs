@@ -14,6 +14,7 @@ use crate::{Device, Result};
 /// A handle to a variable within the ADS device.
 ///
 /// The handle is released automatically on drop.
+#[derive(Debug, Clone)]
 pub struct Handle<'c> {
     device: Device<'c>,
     handle: u32,
@@ -86,6 +87,7 @@ pub fn get_location(device: Device<'_>, symbol: &str) -> Result<(u32, u32)> {
 }
 
 /// Represents a symbol in the PLC memory.
+#[derive(Debug, Clone)]
 pub struct Symbol {
     /// Hierarchical name of the symbol.
     pub name: String,
@@ -133,6 +135,7 @@ pub struct Symbol {
 }
 
 /// Represents a type in the PLC's type inventory.
+#[derive(Debug, Clone)]
 pub struct Type {
     /// Name of the type.
     pub name: String,
@@ -172,6 +175,7 @@ pub struct Type {
 }
 
 /// Represents a field of a structure type.
+#[derive(Debug, Clone)]
 pub struct Field {
     /// Name of the field.
     pub name: String,

@@ -520,7 +520,7 @@ impl Reader {
 }
 
 /// A `Client` wrapper that talks to a specific ADS device.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Device<'c> {
     /// The underlying `Client`.
     pub client: &'c Client,
@@ -939,7 +939,7 @@ impl Device<'_> {
 }
 
 /// Device info returned from an ADS server.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeviceInfo {
     /// Name of the ADS device/service.
     pub name: String,

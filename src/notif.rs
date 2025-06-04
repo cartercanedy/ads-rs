@@ -13,6 +13,7 @@ use crate::{Error, Result};
 pub type Handle = u32;
 
 /// Attributes for creating a notification.
+#[derive(Debug, Clone)]
 pub struct Attributes {
     /// Length of data the notification is interested in.
     pub length: usize,
@@ -52,6 +53,7 @@ pub enum TransmissionMode {
 }
 
 /// A notification message from the ADS server.
+#[derive(Clone)]
 pub struct Notification {
     data: Vec<u8>,
     nstamps: u32,
@@ -122,6 +124,7 @@ pub struct Sample<'a> {
 }
 
 /// An iterator over all samples within a notification message.
+#[derive(Debug, Clone)]
 pub struct SampleIter<'a> {
     data: &'a [u8],
     cur_timestamp: u64,

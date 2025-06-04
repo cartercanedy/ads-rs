@@ -10,6 +10,7 @@ use byteorder::{ByteOrder, LE};
 /// can be used like normal files in Rust APIs.
 ///
 /// The file is closed automatically on drop.
+#[derive(Debug)]
 pub struct File<'c> {
     device: Device<'c>,
     handle: u32,
