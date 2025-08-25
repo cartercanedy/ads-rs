@@ -9,6 +9,13 @@ repository = "https://github.com/birkenfeld/ads-rs"
 keywords = ["Beckhoff", "ADS", "automation", "device", "PLC"]
 rust-version = "1.63"
 
+[features]
+benchmark = []
+
+[[bench]]
+name = "bench"
+harness = false
+
 [dependencies]
 byteorder = "1.5.0"
 crossbeam-channel = "0.5.13"
@@ -28,3 +35,4 @@ strum = { version = "0.26.3", features = ["derive"] }
 # MSRV
 textwrap = "=0.16.0"
 unicode-width = "=0.1.13"
+criterion = { version = "0.5.1", features = ["html_reports"] }
