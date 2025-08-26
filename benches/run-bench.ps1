@@ -24,16 +24,11 @@ try {
   };
 
   $serverJob = Start-ThreadJob {
-    & "${using:exePath}"
+    $env:COMPlus_JITMinOpts = 1;
+    & "${using:exePath}";
   }
 
   sleep 1
-
-  echo "Warming up the ADS server emulator, this takes a while"
-  # warmup the dotnet JIT with 3 runs
-  foreach ($i in 0..2) {
-    cargo bench *>&1 | Out-Null;
-  }
 
   cargo bench
 } finally {

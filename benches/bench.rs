@@ -14,7 +14,9 @@ fn create_device<'c>(client: &'c Client) -> Device<'c> {
 fn write(crit: &mut Criterion) {
     let mut grp = crit.benchmark_group("write");
     grp
-        .sample_size(500);
+        .sample_size(500)
+        .warm_up_time(Duration::from_secs(20))
+        .measurement_time(Duration::from_secs(30));
 
     let client = create_client();
     let device = create_device(&client);
@@ -30,7 +32,10 @@ fn write(crit: &mut Criterion) {
 
 fn read(crit: &mut Criterion) {
     let mut grp = crit.benchmark_group("read");
-    grp.sample_size(500);
+    grp
+        .sample_size(500)
+        .warm_up_time(Duration::from_secs(20))
+        .measurement_time(Duration::from_secs(30));
 
     let client = create_client();
     let device = create_device(&client);
