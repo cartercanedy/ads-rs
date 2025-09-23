@@ -134,8 +134,8 @@ pub struct Client {
     notif_recv: Receiver<notif::Notification>,
     /// Active notification handles: these will be closed on Drop
     notif_handles: Mutex<BTreeSet<(AmsAddr, notif::Handle)>>,
-    /// IO worker
-    worker: ClientWorker,
+    /// IO receiver
+    receiver: ClientReceiver,
     /// If we opened our local port with the router
     source_port_opened: bool,
 }
@@ -149,6 +149,11 @@ impl Drop for Client {
             .get_mut()
             .expect("notification handle cache lock was poisoned");
 
+        // Close all open notification handles.
+        for (addr, handle) in std::mem::take(handles) {
+            let _ = self.device(addr).delete_notification(handle);
+        }
+
         if let Ok(ref mut socket) = self.socket.lock() {
             // Remove our port from the router, if necessary.
             if self.source_port_opened {
@@ -160,12 +165,7 @@ impl Drop for Client {
             let _ = socket.shutdown(Shutdown::Both);
         }
 
-        self.worker.stop();
-
-        // Close all open notification handles.
-        for (addr, handle) in std::mem::take(handles) {
-            let _ = self.device(addr).delete_notification(handle);
-        }
+        self.receiver.stop();
     }
 }
 
@@ -210,17 +210,24 @@ impl Client {
             .to_socket_addrs()
             .ctx("converting address to SocketAddr")?
             .next()
-            .expect("at least one SocketAddr");
+            .ok_or(Error::Other("no destination address could be resolved"))?;
+
         let mut socket = if let Some(timeout) = timeouts.connect {
-            TcpStream::connect_timeout(&addr, timeout).ctx("connecting TCP socket with timeout")?
+            TcpStream::connect_timeout(&addr, timeout)
+                .ctx("establishing connetion to remote ADS router (with timeout)")?
         } else {
-            TcpStream::connect(addr).ctx("connecting TCP socket")?
+            TcpStream::connect(addr).ctx("establishing connection to remote ADS router")?
         };
 
         // Disable Nagle to ensure small requests are sent promptly; we're
         // playing ping-pong with request reply, so no pipelining.
-        socket.set_nodelay(true).ctx("setting NODELAY")?;
-        socket.set_write_timeout(timeouts.write).ctx("setting write timeout")?;
+        socket.set_nodelay(true).ctx("setting client socket NODELAY")?;
+        socket
+            .set_write_timeout(timeouts.write)
+            .ctx("setting client socket write timeout")?;
+        socket
+            .set_read_timeout(timeouts.read)
+            .ctx("setting client socket read timeout")?;
 
         // Determine our source AMS address.  If it's not specified, try to use
         // the socket's local IPv4 address, if it's IPv6 (not sure if Beckhoff
@@ -262,13 +269,13 @@ impl Client {
         let pending = Arc::new(Mutex::new(BTreeMap::new()));
 
         // Start the reader thread.
-        let mut worker = ClientWorker::default();
+        let mut receiver = ClientReceiver::default();
 
-        worker.start(notif_tx, &socket, pending.clone(), source);
+        receiver.start(notif_tx, &socket, pending.clone(), source);
 
         Ok(Client {
             source,
-            worker,
+            receiver,
             source_port_opened,
             pending,
             socket: Mutex::new(socket),
@@ -372,7 +379,6 @@ impl Client {
 
                 Err(RecvTimeoutError::Disconnected) => {
                     self.discard_pending_request(&dispatched_invoke_id);
-
                     return Err(Error::IoSync(
                         "waiting for response to dispatched request",
                         "response channel was closed",
@@ -382,7 +388,6 @@ impl Client {
 
                 Err(RecvTimeoutError::Timeout) => {
                     self.discard_pending_request(&dispatched_invoke_id);
-
                     return Err(std::io::ErrorKind::TimedOut.into())
                         .ctx("waiting for response to dispatched request");
                 }
@@ -391,14 +396,18 @@ impl Client {
             None => match resp_rx.recv() {
                 Ok(Ok((header, payload))) => (header, payload),
 
-                Ok(Err(e)) => return Err(e),
+                Ok(Err(e)) => {
+                    self.discard_pending_request(&dispatched_invoke_id);
+                    return Err(e);
+                }
 
                 Err(_) => {
+                    self.discard_pending_request(&dispatched_invoke_id);
                     return Err(Error::IoSync(
                         "waiting for response to dispatched request",
                         "response channel was closed",
                         dispatched_invoke_id,
-                    ))
+                    ));
                 }
             },
         };
@@ -473,16 +482,24 @@ impl Client {
         // Return either the error or the length of data.
         Ok(resp_buf.len())
     }
+
+    fn insert_pending_request(&self, id: u32, tx: oneshot::Sender<Result<(AdsHeader, Vec<u8>)>>) {
+        self.pending.lock().expect("pending command map lock poisoned").insert(id, tx);
+    }
+
+    fn discard_pending_request(&self, id: &u32) {
+        self.pending.lock().expect("pending command map lock poisoned").remove_entry(id);
+    }
 }
 
 // Implementation detail: reader thread that takes replies and notifications
 // and distributes them accordingly.
 #[derive(Debug, Default)]
-struct ClientWorker {
+struct ClientReceiver {
     handle: Option<JoinHandle<Result<()>>>,
 }
 
-impl ClientWorker {
+impl ClientReceiver {
     fn start(
         &mut self, mut notif_tx: Sender<notif::Notification>, socket: &TcpStream, pending: PendingMap,
         source: AmsAddr,
@@ -522,9 +539,7 @@ impl ClientWorker {
     fn stop(&mut self) -> Option<Result<()>> {
         self.handle.take()?.join().ok()
     }
-}
 
-impl ClientWorker {
     fn reader_work(
         source: AmsAddr, pending: PendingMap, socket_rx: &mut TcpStream,
         notif_tx: &mut Sender<notif::Notification>,
@@ -635,7 +650,7 @@ impl ClientWorker {
     }
 }
 
-impl Drop for ClientWorker {
+impl Drop for ClientReceiver {
     fn drop(&mut self) {
         self.stop();
     }
