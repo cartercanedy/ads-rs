@@ -32,10 +32,12 @@ fn test_timeout() {
             // darwin (maybe other BSDs too?) kernel seems to return `WouldBlock` on timeout
             // linux/windows align on returning `TimedOut`, which makes more sense semantically
             let expected_err = {
-                #[cfg(target_os = "macos")] {
+                #[cfg(target_os = "macos")]
+                {
                     ErrorKind::WouldBlock
                 }
-                #[cfg(not(target_os = "macos"))] {
+                #[cfg(not(target_os = "macos"))]
+                {
                     ErrorKind::TimedOut
                 }
             };
