@@ -198,7 +198,7 @@ impl Client {
     /// client will adopt the AMS NetID of the router for communication with
     /// the remote ADS server.
     ///
-    /// Since all communications between are supposed to be handled by an ADS router,
+    /// Since all communications between endpoints are supposed to be handled by an ADS router,
     /// only one TCP/ADS connection can exist between two hosts. If the client
     /// is connecting directly to the remote ADS router, take care to properly
     /// configure a static route on the remote ADS router, and explicitly specify
